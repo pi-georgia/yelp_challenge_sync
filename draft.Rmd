@@ -1,0 +1,93 @@
+---
+title: "Untitled"
+author: "Georgia P"
+date: "October 15, 2015"
+output: html_document
+---
+
+###Data Exploration
+Use doParallel and foreach packages (more on this topic here: https://cran.r-project.org/web/packages/doParallel/vignettes/gettingstartedParallel.pdf
+Avoid wasting time with dependencies. For that purpose I've created the load function.
+Use sampling when you are going to try different approaches. Or just work with the first "n" lines of the datasets. readLines() and sample() can be very useful to prevent you to realise about error 8 hours after you left the computer doing calculations.
+Keep in mind that there can be very accurate models that can't be implemented due to hardware limitations. You need to be aware that there is a permanent trade-off between efficiency and accuracy on this project. 
+Here you have a real life example of the trade-off I've described:
+https://www.techdirt.com/blog/innovation/articles/20120409/03412518422/why-netflix-never-implemented...
+
+```{r echo=FALSE}
+library(jsonlite)
+reviewsfile<-"yelp_academic_dataset_review.json"
+businessfile<-"yelp_academic_dataset_business.json"
+tipfile<-"yelp_academic_dataset_tip.json"
+checkinfile<-"yelp_academic_dataset_checkin.json"
+userfile<-"yelp_academic_dataset_user.json"
+
+reviews_file<- stream_in(file(reviewsfile))
+#this is unbelievably slow...
+b_file<- stream_in(file(businessfile))
+t_file<- stream_in(file(tipfile))
+ch_file<- stream_in(file(checkinfile))
+
+reviewsf<-fromJSON(sprintf("[%s]", paste(readLines(reviewsfile), collapse=",")))
+usr_file<- fromJSON(sprintf("[%s]", paste(readLines(userfile), collapse=",")))
+
+#Stars
+stars<- json_file$stars[json_file$stars==5]
+pcnt<- length(stars)/ length(json_file$stars) *100
+
+#Wi-Fi
+all<- length(b_file$attributes[20])
+cc<- na.omit(b_file$attributes[20])
+freepcnt<- length(cc[cc=="free"])/ length(cc[,1])*100
+
+#Tips
+t_file$text[1000]
+#funny star
+funnystar<- subset(usr_file,compliments$funny>10000 ,select=name)
+
+#Cross-Tabulation
+library(dplyr)
+users3<- data.frame(funny=usr_file$compliments$funny, fans=usr_file$fans)
+users3$funny[is.na(users3$funny)]<-0
+
+#analytical
+
+  tA0 <- mutate(users3, A0=(!(fans>1) & (funny<1 |is.na(funny)) *1)) %>% summarize(sA0=sum(A0))
+  tA1 <-mutate(users3, A1=(!(fans>1) & (funny>1)&(!is.na(funny)) *1)) %>% summarize(sA1=sum(A1))
+  tB0 <-mutate(users3, B0=((fans>1) &  (funny<1 |is.na(funny)) *1)) %>% summarize(sB0=sum(B0))
+  tB1 <-mutate(users3, B1=((fans>1) & (funny>1)&(!is.na(funny))*1)) %>% summarize(sB1=sum(B1))
+#formal/ intelligent
+tab<- with(users3, table(fanz = fans < 1,fun= funny<1))
+
+
+```
+
+#Questions
+##Distribution of reviews per reviewer
+$ user_id
+$ review_count
+$ votes  
+$ yelping_since
+$ friends
+$ average_stars
+$ compliments 
+```{r echo=FALSE}
+usr_file$ys <- substr(usr_file$yelping_since, 1, 4)
+usr_file$ys<-as.integer(usr_file$ys)
+usr_file$seniorship = 2015-usr_file$ys
+usr_file$y_review_count = usr_file$review_count / usr_file$seniorship
+usr_file$average_stars_r = round(usr_file$average_stars, 1)
+library(ggplot2)
+ggplot(usr_file, aes(x=factor(seniorship), y=y_review_count ))+ geom_boxplot()
+  
+```
+##How many reviews are fake ?
+ Detect when checking time-day doesn't match the business open hours
+
+##Are top reviewers mostly ...
+###giving bad or good reviews?
+###rating or writing tips?
+###are tips mostly positive or negative?
+###how connected are they?
+
+###What are the business categories with the most reviews
+
